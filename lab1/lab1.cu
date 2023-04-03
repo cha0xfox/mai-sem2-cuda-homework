@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <vector>
+#include <chrono>
 
 using std::vector;
 
@@ -26,9 +27,19 @@ __global__ void powKernel(double *dev_vect, int N) {
     }
 }
 
+
+void testCpu( vector<double> &vect, int N){
+    for (int i = 0; i<N; i++){
+        vect[i] = vect[i] * vect[i];
+    }
+}
+
 int main() {
     int N;
     std::cin>>N;
+
+    using clock = std::chrono::system_clock;
+    using sec = std::chrono::duration<double, std::milli>;
 
     if (N>pow(2,25)){
         fprintf(stderr,"ERROR: N is too big");
@@ -63,7 +74,7 @@ int main() {
     cudaEventRecord(start,0);
 
     //run kernel
-    powKernel<<<num_blocks, BLOCK_SIZE>>>(dev_vect, N);
+    powKernel<<<1024, 1024>>>(dev_vect, N);
     cudaCheckError();
 
     cudaEventRecord(stop,0);
@@ -77,8 +88,18 @@ int main() {
     cudaMemcpy(host_vect_out.data(), dev_vect, bytes, cudaMemcpyDeviceToHost);
     cudaCheckError();
 
-    for (int i = 0; i<N; i++)
+    for (int i = N-5; i<N; i++)
         printf("%.10e ",host_vect_out[i]);
+
+    const auto before = clock::now();
+
+    testCpu(host_vect,N);
+
+    const sec duration = clock::now() - before;
+
+    std::cout << std::endl;
+    std::cout << "Time elapsed on GPU: " << gpuTime << "ms" << std::endl;
+    std::cout << "Time elapsed on CPU: " << duration.count() << "ms" << std::endl;
 
     cudaFree(dev_vect);
 
