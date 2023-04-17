@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <vector>
+#include <chrono>
 
 #define BLOCK_SIZE 1024
 
@@ -28,8 +30,13 @@ __global__ void mykernel(uchar4* out_dev, int w, int h, cudaTextureObject_t text
         uchar4 p01 = tex2D<uchar4>(textureObject, x, y + 1);
         uchar4 p11 = tex2D<uchar4>(textureObject, x + 1, y + 1);
 
-        gx = p00.x - p11.x;
-        gy = p01.x - p10.x;
+        float r00 = 0.299 * p00.x + 0.587 * p00.y + 0.114 * p00.z;
+        float r10 = 0.299 * p10.x + 0.587 * p10.y + 0.114 * p10.z;
+        float r01 = 0.299 * p01.x + 0.587 * p01.y + 0.114 * p01.z;
+        float r11 = 0.299 * p11.x + 0.587 * p11.y + 0.114 * p11.z;
+
+        gx = r00 - r11;
+        gy = r01 - r10;
         
         float magnitude = sqrtf(gx * gx + gy * gy);
         magnitude = fminf(fmaxf(magnitude, 0.0f), 255.0f);
@@ -57,7 +64,7 @@ int main() {
     FILE* File = fopen(infile, "rb");
     fread(&w, sizeof(int), 1, File);
     fread(&h, sizeof(int), 1, File);
-    if (w >= 655536 || h >= 655536 || w * h > pow(10,8)) {
+    if (w >= 655536 || h >= 655536 || w * h > 100000000) {
         fprintf(stderr, "Dimensions too big\n");
         return 1;
     }
